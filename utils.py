@@ -28,7 +28,6 @@ def set_seed(seed):
 
 def get_training_config(config_path, model_name, dataset):
     with open(config_path, "r") as conf:
-        print(config_path)
         full_config = yaml.load(conf, Loader=yaml.FullLoader)
     dataset_specific_config = full_config["global"]
     model_specific_config = full_config[dataset][model_name]
@@ -53,7 +52,6 @@ def check_writable(path, overwrite=True):
 
 
 def check_readable(path):
-    print(path)
     if not os.path.exists(path):
         raise ValueError(f"No such file or directory! {path}")
 

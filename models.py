@@ -196,6 +196,8 @@ class GCN(nn.Module):
                 if self.norm_type != "none":
                     h = self.norms[l](h)
                 h = self.dropout(h)
+        print(len(h_list),len(h))
+        print(h_list,h)
         return h_list, h
 
 class GAT(nn.Module):
@@ -360,7 +362,8 @@ class SGCN(nn.Module):
         self.activation = activation
         self.dropout = nn.Dropout(dropout_ratio)
         self.norms = nn.ModuleList()
-        self.conv=SGConv(input_dim, output_dim, k=1)
+        self.k=2
+        self.conv=SGConv(input_dim, output_dim, k=self.k)
 
     def forward(self, g, feats):
         h = feats
