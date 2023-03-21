@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from dgl.nn import GraphConv, SAGEConv, APPNPConv, GATConv,SGConv
+from dgl.nn import GraphConv, SAGEConv, APPNPConv, GATConv,SGConv,GINConv
+from dgl.nn import GATv2Conv
 
 
 class MLP(nn.Module):
@@ -196,8 +197,6 @@ class GCN(nn.Module):
                 if self.norm_type != "none":
                     h = self.norms[l](h)
                 h = self.dropout(h)
-        print(len(h_list),len(h))
-        print(h_list,h)
         return h_list, h
 
 class GAT(nn.Module):
@@ -362,7 +361,7 @@ class SGCN(nn.Module):
         self.activation = activation
         self.dropout = nn.Dropout(dropout_ratio)
         self.norms = nn.ModuleList()
-        self.k=3
+        self.k=4
         self.conv=SGConv(input_dim, output_dim, k=self.k)
 
     def forward(self, g, feats):
@@ -371,6 +370,126 @@ class SGCN(nn.Module):
         h = self.conv(g, feats)
         return [h], h
     
+class GIN(nn.Module):
+    def __init__(
+        self,
+        num_layers,
+        dropout_ratio,
+        activation,
+        norm_type="none",
+    ):
+        super().__init__()
+        self.num_layers =4
+        self.norm_type = norm_type
+        self.dropout = nn.Dropout(dropout_ratio)
+        self.layers = nn.ModuleList()
+        self.norms = nn.ModuleList()
+
+        if self.num_layers == 1:
+            self.layers.append(GINConv(learn_eps=True))
+        else:
+            self.layers.append(GINConv(learn_eps=True))
+            if self.norm_type == "batch":
+                self.norms.append(nn.BatchNorm1d(hidden_dim))
+            elif self.norm_type == "layer":
+                self.norms.append(nn.LayerNorm(hidden_dim))
+
+            for i in range(self.num_layers - 2):
+                self.layers.append(
+                    GINConv(learn_eps=True)
+                )
+                if self.norm_type == "batch":
+                    self.norms.append(nn.BatchNorm1d(hidden_dim))
+                elif self.norm_type == "layer":
+                    self.norms.append(nn.LayerNorm(hidden_dim))
+
+            self.layers.append(GINConv(learn_eps=True))
+
+    def forward(self, g, feats):
+        h = feats
+        return [], GINConv(learn_eps=True)(g, feats)
+
+class GATv2(nn.Module):
+    def __init__(
+        self,
+        num_layers,
+        input_dim,
+        hidden_dim,
+        output_dim,
+        dropout_ratio,
+        activation,
+        num_heads=8,
+        attn_drop=0.3,
+        negative_slope=0.2,
+        residual=False,
+    ):
+        super(GATv2, self).__init__()
+        # For GAT, the number of layers is required to be > 1
+        assert num_layers > 1
+
+        hidden_dim //= num_heads
+        self.num_layers = num_layers
+        self.layers = nn.ModuleList()
+        self.activation = activation
+
+        heads = ([num_heads] * num_layers) + [1]
+        # input (no residual)
+        self.layers.append(
+            GATv2Conv(
+                input_dim,
+                hidden_dim,
+                heads[0],
+                dropout_ratio,
+                attn_drop,
+                negative_slope,
+                False,
+                self.activation,
+            )
+        )
+
+        for l in range(1, num_layers - 1):
+            # due to multi-head, the in_dim = hidden_dim * num_heads
+            self.layers.append(
+                GATv2Conv(
+                    hidden_dim * heads[l - 1],
+                    hidden_dim,
+                    heads[l],
+                    dropout_ratio,
+                    attn_drop,
+                    negative_slope,
+                    residual,
+                    self.activation,
+                )
+            )
+
+        self.layers.append(
+            GATv2Conv(
+                hidden_dim * heads[-2],
+                output_dim,
+                heads[-1],
+                dropout_ratio,
+                attn_drop,
+                negative_slope,
+                residual,
+                None,
+            )
+        )
+
+    def forward(self, g, feats):
+        h = feats
+        h_list = []
+        for l, layer in enumerate(self.layers):
+            # [num_head, node_num, nclass] -> [num_head, node_num*nclass]
+            h = layer(g, h)
+            if l != self.num_layers - 1:
+                h = h.flatten(1)
+                h_list.append(h)
+            else:
+                h = h.mean(1)
+        return h_list, h
+
+
+
 
 
 class Model(nn.Module):
@@ -439,6 +558,24 @@ class Model(nn.Module):
                 activation=F.relu,
                 norm_type=conf["norm_type"],
             ).to(conf["device"])
+        elif conf["model_name"]=="GIN":
+            self.encoder = GIN(
+                num_layers=conf["num_layers"],
+                dropout_ratio=conf["dropout_ratio"],
+                activation=F.relu,
+                norm_type=conf["norm_type"],
+            ).to(conf["device"])
+        elif conf["model_name"]=="GATv2":
+            self.encoder = GATv2(
+                num_layers=conf["num_layers"],
+                input_dim=conf["feat_dim"],
+                hidden_dim=conf["hidden_dim"],
+                output_dim=conf["label_dim"],
+                dropout_ratio=conf["dropout_ratio"],
+                activation=F.relu,
+                norm_type=conf["norm_type"],
+            ).to(conf["device"])
+
 
     def forward(self, data, feats):
         """

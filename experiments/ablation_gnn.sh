@@ -14,7 +14,7 @@ do
     for t in "GCN" "GAT" "SAGE" "MLP" "APPNP"
     do
         printf "%6s\n" $t >> $aggregated_result_file
-        for ds in "cora" "citeseer" "pubmed" "a-computer" "a-photo"
+        for ds in "cora" "citeseer" "pubmed" 
         do
             printf "%10s\t" $ds >> $aggregated_result_file
             python train_teacher.py --exp_setting $e --teacher $t --dataset $ds --num_exp 5 \
@@ -33,7 +33,7 @@ do
     for t in "GCN" "GAT" "SAGE" "APPNP"
     do
         printf "%6s\n" $t >> $aggregated_result_file
-        for ds in "cora" "citeseer" "pubmed" "a-computer" "a-photo"
+        for ds in "cora" "citeseer" "pubmed" 
         do
             printf "%10s\t" $ds >> $aggregated_result_file
             python train_student.py --exp_setting $e --teacher $t --dataset $ds --num_exp 5 \
