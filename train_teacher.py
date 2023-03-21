@@ -192,6 +192,7 @@ def run(args):
             args.teacher,
             f"seed_{args.seed}",
         )
+        print(output_dir)
     else:
         raise ValueError(f"Unknown experiment setting! {args.exp_setting}")
     args.output_dir = output_dir

@@ -346,7 +346,6 @@ class APPNP(nn.Module):
 class SGCN(nn.Module):
     def __init__(
         self,
-        num_layers,
         input_dim,
         hidden_dim,
         output_dim,
@@ -355,81 +354,19 @@ class SGCN(nn.Module):
         norm_type="none",
     ):
         super().__init__()
-        self.num_layers = num_layers
         self.hidden_dim = hidden_dim
         self.output_dim = output_dim
         self.norm_type = norm_type
         self.activation = activation
         self.dropout = nn.Dropout(dropout_ratio)
-        self.layers = nn.ModuleList()
         self.norms = nn.ModuleList()
+        self.conv=SGConv(input_dim, output_dim, k=1)
 
-        if num_layers == 1:
-            self.layers.append(SGConv(input_dim, output_dim, "gcn"))
-        else:
-            self.layers.append(SGConv(input_dim, hidden_dim, "gcn"))
-            if self.norm_type == "batch":
-                self.norms.append(nn.BatchNorm1d(hidden_dim))
-            elif self.norm_type == "layer":
-                self.norms.append(nn.LayerNorm(hidden_dim))
-
-            for i in range(num_layers - 2):
-                self.layers.append(SGConv(hidden_dim, hidden_dim, "gcn"))
-                if self.norm_type == "batch":
-                    self.norms.append(nn.BatchNorm1d(hidden_dim))
-                elif self.norm_type == "layer":
-                    self.norms.append(nn.LayerNorm(hidden_dim))
-
-            self.layers.append(SGConv(hidden_dim, output_dim, "gcn"))
-
-    def forward(self, blocks, feats):
+    def forward(self, g, feats):
         h = feats
         h_list = []
-        for l, (layer, block) in enumerate(zip(self.layers, blocks)):
-            # We need to first copy the representation of nodes on the RHS from the
-            # appropriate nodes on the LHS.
-            # Note that the shape of h is (num_nodes_LHS, D) and the shape of h_dst
-            # would be (num_nodes_RHS, D)
-            h_dst = h[: block.num_dst_nodes()]
-            # Then we compute the updated representation on the RHS.
-            # The shape of h now becomes (num_nodes_RHS, D)
-            h = layer(block, (h, h_dst))
-            if l != self.num_layers - 1:
-                h_list.append(h)
-                if self.norm_type != "none":
-                    h = self.norms[l](h)
-                h = self.activation(h)
-                h = self.dropout(h)
-        return h_list, h
-
-    def inference(self, dataloader, feats):
-        """
-        Inference with the GraphSAGE model on full neighbors (i.e. without neighbor sampling).
-        dataloader : The entire graph loaded in blocks with full neighbors for each node.
-        feats : The input feats of entire node set.
-        """
-        device = feats.device
-        for l, layer in enumerate(self.layers):
-            y = torch.zeros(
-                feats.shape[0],
-                self.hidden_dim if l != self.num_layers - 1 else self.output_dim,
-            ).to(device)
-            for input_nodes, output_nodes, blocks in dataloader:
-                block = blocks[0].int().to(device)
-
-                h = feats[input_nodes]
-                h_dst = h[: block.num_dst_nodes()]
-                h = layer(block, (h, h_dst))
-                if l != self.num_layers - 1:
-                    if self.norm_type != "none":
-                        h = self.norms[l](h)
-                    h = self.activation(h)
-                    h = self.dropout(h)
-
-                y[output_nodes] = h
-
-            feats = y
-        return y    
+        h = self.conv(g, feats)
+        return [h], h
     
     
     
@@ -692,7 +629,7 @@ class Model(nn.Module):
                 activation=F.relu,
                 norm_type=conf["norm_type"],
             ).to(conf["device"])
-        elif "GCN" in conf["model_name"]:
+        elif conf["model_name"]=="GCN":
             self.encoder = GCN(
                 num_layers=conf["num_layers"],
                 input_dim=conf["feat_dim"],
@@ -723,8 +660,7 @@ class Model(nn.Module):
                 norm_type=conf["norm_type"],
             ).to(conf["device"])
         elif "SGCN" in conf["model_name"]:
-            self.encoder = GCN(
-                num_layers=conf["num_layers"],
+            self.encoder = SGCN(
                 input_dim=conf["feat_dim"],
                 hidden_dim=conf["hidden_dim"],
                 output_dim=conf["label_dim"],
