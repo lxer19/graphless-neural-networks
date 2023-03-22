@@ -5,13 +5,13 @@
 # on five datasets: "cora" "citeseer" "pubmed" "a-computer" "a-photo"
 # Then train corresponding GLNN for each teacher
 
-aggregated_result_file="ablation_gnn.txt"
+aggregated_result_file="ablation_gnn_v2.txt"
 printf "Teacher\n" >> $aggregated_result_file    
 
 for e in "tran" "ind"
 do
     printf "%6s\n" $e >> $aggregated_result_file
-    for t in "GCN" "GAT" "SAGE" "MLP" "APPNP"
+    for t in "SGCN" "GIN" "GATv2" 
     do
         printf "%6s\n" $t >> $aggregated_result_file
         for ds in "cora" "citeseer" "pubmed" 
@@ -30,7 +30,7 @@ printf "Student\n" >> $aggregated_result_file
 for e in "tran" "ind"
 do
     printf "%6s\n" $e >> $aggregated_result_file
-    for t in "GCN" "GAT" "SAGE" "APPNP"
+    for t in "SGCN" "GIN" "GATv2"
     do
         printf "%6s\n" $t >> $aggregated_result_file
         for ds in "cora" "citeseer" "pubmed" 

@@ -1,5 +1,22 @@
+<<<<<<< Updated upstream
   citeseer	/Users/lxer/Documents/GitHub/graphless-neural-networks-v2/outputs/inductive/split_rate_0.2/citeseer/SGCN/seed_0
     pubmed	/Users/lxer/Documents/GitHub/graphless-neural-networks-v2/outputs/inductive/split_rate_0.2/pubmed/SGCN/seed_0
 
    GIN
-      cora	
+=======
+Teacher
+  tran
+  SGCN
+      cora	 0.8118	 0.0237	
+  citeseer	    pubmed	
+   GIN
+      cora	 0.7857	 0.0234	
+  citeseer	    pubmed	
+ GATv2
+      cora	 0.8216	 0.0113	
+  citeseer	    pubmed	
+
+   ind
+  SGCN
+>>>>>>> Stashed changes
+      cora	  citeseer	

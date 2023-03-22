@@ -373,22 +373,25 @@ class SGCN(nn.Module):
 class GIN(nn.Module):
     def __init__(
         self,
+        input_dim,
+        hidden_dim,
+        output_dim,
         num_layers,
         dropout_ratio,
         activation,
         norm_type="none",
     ):
         super().__init__()
-        self.num_layers =4
+        self.num_layers =2
         self.norm_type = norm_type
         self.dropout = nn.Dropout(dropout_ratio)
         self.layers = nn.ModuleList()
         self.norms = nn.ModuleList()
 
         if self.num_layers == 1:
-            self.layers.append(GINConv(learn_eps=True))
+            self.layers.append(GINConv(torch.nn.Linear(input_dim, output_dim),learn_eps=True))
         else:
-            self.layers.append(GINConv(learn_eps=True))
+            self.layers.append(GINConv(torch.nn.Linear(input_dim, hidden_dim),learn_eps=True))
             if self.norm_type == "batch":
                 self.norms.append(nn.BatchNorm1d(hidden_dim))
             elif self.norm_type == "layer":
@@ -396,18 +399,26 @@ class GIN(nn.Module):
 
             for i in range(self.num_layers - 2):
                 self.layers.append(
-                    GINConv(learn_eps=True)
+                    GINConv(torch.nn.Linear(hidden_dim, hidden_dim),learn_eps=True)
                 )
                 if self.norm_type == "batch":
                     self.norms.append(nn.BatchNorm1d(hidden_dim))
                 elif self.norm_type == "layer":
                     self.norms.append(nn.LayerNorm(hidden_dim))
 
-            self.layers.append(GINConv(learn_eps=True))
+            self.layers.append(GINConv(torch.nn.Linear(hidden_dim, output_dim),learn_eps=True))
 
     def forward(self, g, feats):
         h = feats
-        return [], GINConv(learn_eps=True)(g, feats)
+        h_list = []
+        for l, layer in enumerate(self.layers):
+            h = layer(g, h)
+            if l != self.num_layers - 1:
+                h_list.append(h)
+                if self.norm_type != "none":
+                    h = self.norms[l](h)
+                h = self.dropout(h)
+        return h_list, h
 
 class GATv2(nn.Module):
     def __init__(
@@ -490,8 +501,6 @@ class GATv2(nn.Module):
 
 
 
-
-
 class Model(nn.Module):
     """
     Wrapper of different models
@@ -560,6 +569,9 @@ class Model(nn.Module):
             ).to(conf["device"])
         elif conf["model_name"]=="GIN":
             self.encoder = GIN(
+            	input_dim=conf["feat_dim"],
+                hidden_dim=conf["hidden_dim"],
+                output_dim=conf["label_dim"],
                 num_layers=conf["num_layers"],
                 dropout_ratio=conf["dropout_ratio"],
                 activation=F.relu,
@@ -567,6 +579,16 @@ class Model(nn.Module):
             ).to(conf["device"])
         elif conf["model_name"]=="GATv2":
             self.encoder = GATv2(
+                num_layers=conf["num_layers"],
+                input_dim=conf["feat_dim"],
+                hidden_dim=conf["hidden_dim"],
+                output_dim=conf["label_dim"],
+                dropout_ratio=conf["dropout_ratio"],
+                activation=F.relu,
+                norm_type=conf["norm_type"],
+            ).to(conf["device"])
+        elif conf["model_name"]=="Graphormer":
+            self.encoder = GraphormerEncoder(
                 num_layers=conf["num_layers"],
                 input_dim=conf["feat_dim"],
                 hidden_dim=conf["hidden_dim"],
