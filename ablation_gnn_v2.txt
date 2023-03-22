@@ -1,0 +1,5 @@
+  citeseer	/Users/lxer/Documents/GitHub/graphless-neural-networks-v2/outputs/inductive/split_rate_0.2/citeseer/SGCN/seed_0
+    pubmed	/Users/lxer/Documents/GitHub/graphless-neural-networks-v2/outputs/inductive/split_rate_0.2/pubmed/SGCN/seed_0
+
+   GIN
+      cora	
