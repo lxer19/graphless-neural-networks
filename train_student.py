@@ -302,6 +302,7 @@ def run(args):
         if args.feature_aug_k > 0:
             feats = feature_prop(feats, g, args.feature_aug_k)
 
+
         out, score_val, score_test = distill_run_transductive(
             conf,
             model,
@@ -314,7 +315,7 @@ def run(args):
             evaluator,
             optimizer,
             logger,
-            loss_and_score,
+            loss_and_score
         )
         score_lst = [score_test]
 

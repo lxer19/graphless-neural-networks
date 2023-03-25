@@ -1,0 +1,17 @@
+Student
+  tran
+  SGCN
+      cora	  citeseer	    pubmed	
+   GIN
+      cora	  citeseer	    pubmed	
+ GATv2
+      cora	  citeseer	    pubmed	
+
+   ind
+  SGCN
+      cora	  citeseer	    pubmed	
+   GIN
+      cora	  citeseer	    pubmed	
+ GATv2
+      cora	  citeseer	    pubmed	
+
